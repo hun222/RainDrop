@@ -1,0 +1,125 @@
+package com.hoonyeee.android.raindrop;
+
+import android.content.Context;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.util.DisplayMetrics;
+import android.view.View;
+import android.widget.FrameLayout;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class MainActivity extends AppCompatActivity {
+    FrameLayout layout;
+    float displayHeight;
+    float displayWidth;
+    Stage stage;
+    RunThread runThread;
+    boolean isEnd, isEndMake;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        DisplayMetrics metrics = getResources().getDisplayMetrics();
+        displayHeight = metrics.heightPixels;
+        displayWidth = metrics.widthPixels;
+        isEnd = false;
+        isEndMake = false;
+        layout = findViewById(R.id.stage);
+        stage = new Stage(this);
+        layout.addView(stage);
+        runThread = new RunThread();
+        runThread.start();
+        makeRainDrop();
+    }
+    public void makeRainDrop(){
+        new Thread(){
+            public void run(){
+                for(int i=0; i<50; i++){
+                    RainDrop rainDrop = new RainDrop((int)displayWidth, (int)displayHeight);
+                    rainDrop.start();
+                    stage.addRainDrop(rainDrop);
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                isEndMake = true;
+            }
+        }.start();
+    }
+
+    class RunThread extends Thread{
+        public void run(){
+            while(!isEnd){
+                stage.postInvalidate();
+                try {
+                    Thread.sleep(10);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    class RainDrop extends Thread{
+        public float x = 0;
+        public float y = 0;
+        public float radius = 0;
+        public Paint paint;
+        float speed = 0;
+        float limit;
+        public RainDrop(int width, int height){
+            Random random = new Random();
+            x = random.nextInt(width);
+            y = 0;
+            radius = random.nextInt(10) + 10;
+            speed = random.nextInt(15) + 5;
+            paint = new Paint();
+            paint.setColor(Color.MAGENTA);
+
+            limit = height;
+        }
+        public void run(){
+            while( y < limit){
+                y += speed;
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    // 스테이지
+    class Stage extends View {
+        public Stage(Context context) {
+            super(context);
+        }
+
+        List<RainDrop> rainDrops = new ArrayList<>();
+        public void addRainDrop(RainDrop rainDrop){
+            rainDrops.add(rainDrop);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            for(int i=0; i<rainDrops.size(); i++){
+                RainDrop rainDrop = rainDrops.get(i);
+                canvas.drawCircle(rainDrop.x, rainDrop.y, rainDrop.radius, rainDrop.paint);
+            }
+
+            if(isEndMake = true)
+                isEnd= false;
+        }
+    }
+}
