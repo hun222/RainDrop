@@ -7,8 +7,11 @@ import android.graphics.Paint;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +23,9 @@ public class MainActivity extends AppCompatActivity {
     float displayWidth;
     Stage stage;
     RunThread runThread;
-    boolean isEnd, isEndMake;
+    boolean isEnd, isEndMake, first;
+    boolean pause, isFirst;
+    Button start,stop;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -30,24 +35,66 @@ public class MainActivity extends AppCompatActivity {
         displayWidth = metrics.widthPixels;
         isEnd = false;
         isEndMake = false;
+        first = true;
+        start = findViewById(R.id.start);
+        stop = findViewById(R.id.stop);
         layout = findViewById(R.id.stage);
         stage = new Stage(this);
         layout.addView(stage);
+        pause = false;
+        isFirst = true;
+
         runThread = new RunThread();
         runThread.start();
-        makeRainDrop();
+
+
+        View.OnClickListener listener = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                switch (v.getId()){
+                    case R.id.stop:
+                        stage.pause();
+                        break;
+                    case R.id.start:
+                        if(isFirst) {
+                            makeRainDrop();
+                            isFirst = false;
+                        }else{
+                            if(pause){
+                             //pause = false;
+                                stage.restart();
+                            }
+                        }
+                        break;
+                }
+            }
+        };
+        start.setOnClickListener(listener);
+        stop.setOnClickListener(listener);
     }
+
     public void makeRainDrop(){
         new Thread(){
             public void run(){
-                for(int i=0; i<50; i++){
-                    RainDrop rainDrop = new RainDrop((int)displayWidth, (int)displayHeight);
-                    rainDrop.start();
-                    stage.addRainDrop(rainDrop);
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                for (int i = 0; i < 50; i++) {
+                    if(!pause) {
+                        RainDrop rainDrop = new RainDrop((int) displayWidth, (int) displayHeight);
+                        rainDrop.start();
+                        stage.addRainDrop(rainDrop);
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
+                    }else{
+                        //paused면 for문 안돌게
+                        while(pause){
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 }
 
@@ -56,15 +103,17 @@ public class MainActivity extends AppCompatActivity {
         }.start();
     }
 
+    //화면갱신
     class RunThread extends Thread{
         public void run(){
             while(!isEnd){
-                stage.postInvalidate();
+                stage.postInvalidate(); //sub thread에서 view를 갱신시키기 위함
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+
             }
         }
     }
@@ -76,10 +125,11 @@ public class MainActivity extends AppCompatActivity {
         public Paint paint;
         float speed = 0;
         float limit;
+
         public RainDrop(int width, int height){
             Random random = new Random();
             x = random.nextInt(width);
-            y = 0;
+            y = 0 - radius;
             radius = random.nextInt(10) + 10;
             speed = random.nextInt(15) + 5;
             paint = new Paint();
@@ -89,23 +139,25 @@ public class MainActivity extends AppCompatActivity {
         }
         public void run(){
             while( y < limit){
-                y += speed;
                 try {
                     Thread.sleep(100);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                if(!pause)
+                    y += speed;
             }
         }
     }
 
     // 스테이지
     class Stage extends View {
+        List<RainDrop> rainDrops;
+
         public Stage(Context context) {
             super(context);
+            rainDrops = new ArrayList<>();
         }
-
-        List<RainDrop> rainDrops = new ArrayList<>();
         public void addRainDrop(RainDrop rainDrop){
             rainDrops.add(rainDrop);
         }
@@ -118,8 +170,16 @@ public class MainActivity extends AppCompatActivity {
                 canvas.drawCircle(rainDrop.x, rainDrop.y, rainDrop.radius, rainDrop.paint);
             }
 
-            if(isEndMake = true)
-                isEnd= false;
+            /*if(isEndMake = true)
+                isEnd= false;*/
+        }
+
+        public void pause() {
+            pause = true;
+        }
+
+        public void restart(){
+            pause = false;
         }
     }
 }
